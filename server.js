@@ -4,11 +4,6 @@ const http = require("http");
 const cors = require("cors");
 const rsa = require("node-rsa");
 
-const salt_begin =
-  "NmqY72z4SJu9fmme8LxESEZCRMFYPzkEkxJXbknhSFSKaTHzG6W4zUPXU4BZZJB4";
-const salt_end =
-  "QIyqpfQeXJf2eXYqsbWBv8FRZmA8LfAupdtuGEMp7RmMt3G7kuUwv9kS8UT6Dn5S";
-
 const app = express();
 const port = process.env.PORT || 3002;
 
@@ -27,18 +22,18 @@ function getDate() {
   return dayF + "/" + monthF + "/" + yearF;
 }
 
-function sign(req, message, name, email) {
+function sign(req) {
   var privateKey = new rsa();
   privateKey.importKey(req.body.privateKey);
   var signature =
-    "ASSINADO POR:\nNOME: " +
-    name +
-    "\nE-MAIL: " +
-    email +
-    "\nDATA: " +
+    "ASSINADO POR:\nNOME: \n" +
+    req.body.name +
+    "\nE-MAIL: \n" +
+    req.body.email +
+    "\nDATA: \n" +
     getDate();
   var encrypted = privateKey.encryptPrivate(signature, "base64");
-  return encrypted + "\n" + message;
+  return encrypted + "\n" + req.body.message;
 }
 
 function checkSignature(req) {
@@ -50,15 +45,32 @@ function checkSignature(req) {
 }
 
 app.post("/sign-document", (req, res) => {
-  if (!req.body.message || !req.body.privateKey) {
+  if (
+    !req.body.message ||
+    !req.body.privateKey ||
+    !req.body.name ||
+    !req.body.email
+  ) {
     return res
       .sendStatus(404)
-      .json({ msg: "please inform public key and message" });
+      .json({ msg: "please inform all necessary data" });
   }
 
   const signed = sign(req);
 
   return res.json({ signed });
+});
+
+app.post("/verify-document", (req, res) => {
+  if (!req.body.message || !req.body.publicKey) {
+    return res
+      .sendStatus(404)
+      .json({ msg: "please inform public key and message" });
+  }
+
+  const decrypted = checkSignature(req);
+
+  return res.json({ decrypted });
 });
 
 /**
