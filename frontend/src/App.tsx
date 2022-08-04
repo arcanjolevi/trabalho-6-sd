@@ -15,7 +15,21 @@ import {
   generatePair,
   importPrivateKey,
   importPublicKey,
-} from "./utils/rsaGenerateKeys";
+  sign,
+} from "./utils/rsa";
+
+const style = {
+  height: "70px",
+  alignItems: "center",
+  width: "25%",
+  justifyContent: "center",
+  _hover: { opacity: 0.5 },
+  cursor: "pointer",
+  fontFamily: "'Montserrat', sans-serif",
+  fontWeight: "500",
+  padding: "10px",
+  textAlign: "center",
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -28,7 +42,7 @@ function App() {
       justifyContent={"center"}
     >
       <Flex
-        width={"700px"}
+        width={"800px"}
         padding={"10px"}
         boxShadow="rgba(0, 0, 0, 0.24) 0px 3px 8px;"
         borderRadius={"10px"}
@@ -37,66 +51,145 @@ function App() {
       >
         <Flex
           width={"100%"}
-          height="40px"
+          height="70px"
           alignItems={"center"}
           justifyContent="space-between"
+          background={"#cccccc"}
         >
-          <Flex
-            width={"33.30%"}
-            justifyContent="center"
-            _hover={{ opacity: 0.5 }}
-            cursor="pointer"
+          <Tab
+            onClick={() => setActiveTab(0)}
             borderBottom={
               activeTab === 0 ? "3px solid #385898" : "3px solid #cecece"
             }
-            fontFamily="'Montserrat', sans-serif"
-            fontWeight={"500"}
-            padding="10px"
-            onClick={() => setActiveTab(0)}
           >
             Gerar Chaves
-          </Flex>
-          <Flex
-            width={"33.30%"}
-            justifyContent="center"
-            _hover={{ opacity: 0.5 }}
-            cursor="pointer"
-            borderRight={"1px solid #c0c0c0"}
-            borderLeft={"1px solid #c0c0c0"}
+          </Tab>
+          <Tab
+            onClick={() => setActiveTab(1)}
             borderBottom={
               activeTab === 1 ? "3px solid #385898" : "3px solid #cecece"
             }
-            fontFamily="'Montserrat', sans-serif"
-            fontWeight={"500"}
-            padding="10px"
-            onClick={() => setActiveTab(1)}
           >
             Criptografar Arquivo
-          </Flex>
-          <Flex
-            width={"33.30%"}
-            justifyContent="center"
-            _hover={{ opacity: 0.5 }}
-            cursor="pointer"
+          </Tab>
+          <Tab
+            onClick={() => setActiveTab(2)}
             borderBottom={
               activeTab === 2 ? "3px solid #385898" : "3px solid #cecece"
             }
-            fontFamily="'Montserrat', sans-serif"
-            fontWeight={"500"}
-            padding="10px"
-            onClick={() => setActiveTab(2)}
           >
             Descriptografar Arquivo
-          </Flex>
+          </Tab>
+
+          <Tab
+            borderBottom={
+              activeTab === 3 ? "3px solid #385898" : "3px solid #cecece"
+            }
+            onClick={() => setActiveTab(3)}
+          >
+            Assinar Documento
+          </Tab>
+
+          <Tab
+            borderBottom={
+              activeTab === 4 ? "3px solid #385898" : "3px solid #cecece"
+            }
+            onClick={() => setActiveTab(4)}
+          >
+            Assinar Documento
+          </Tab>
         </Flex>
 
         {activeTab === 0 && <Generator />}
         {activeTab === 1 && <FileCripto />}
         {activeTab === 2 && <FileDesCripto />}
+        {activeTab === 3 && <FileSign />}
       </Flex>
     </Flex>
   );
 }
+
+const FileSign = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
+  const [message, setMessage] = useState("");
+  const [file, setFile] = useState<File>();
+
+  async function signFile() {
+    try {
+      const data = await sign(privateKey, message, name, email);
+
+      if (file) {
+        generateFile(`signed_${file.name}`, data);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return (
+    <Flex w="100%" padding={"30px"} flexDirection="column">
+      <h1>Nome</h1>
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        marginBottom={"20px"}
+      ></Input>
+
+      <h1>Email</h1>
+      <Input
+        value={email}
+        type="email"
+        onChange={(e) => setEmail(e.target.value)}
+        marginBottom={"20px"}
+      ></Input>
+
+      <h1>Chave Privada</h1>
+      <Input
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            setFile(e.target.files[0]);
+            const reader = new FileReader();
+            reader.readAsText(e.target.files[0], "UTF-8");
+            reader.onload = (evt) => {
+              setPrivateKey((evt.target?.result as string) || "");
+            };
+          }
+        }}
+        marginBottom={"20px"}
+        type={"file"}
+      ></Input>
+
+      <h1>Arquivo a ser Assinado</h1>
+      <Input marginBottom={"20px"} type={"file"}></Input>
+
+      <Button onClick={signFile} colorScheme={"facebook"}>
+        Assinar Aquivo
+      </Button>
+    </Flex>
+  );
+};
+
+const Tab = ({ children, ...props }: any) => {
+  return (
+    <Flex
+      background={"#FFF"}
+      height={"70px"}
+      alignItems="center"
+      width={"19.85%"}
+      justifyContent="center"
+      _hover={{ opacity: 0.5 }}
+      cursor="pointer"
+      fontFamily="'Montserrat', sans-serif"
+      fontWeight={"500"}
+      padding="10px"
+      textAlign="center"
+      {...props}
+    >
+      {children}
+    </Flex>
+  );
+};
 
 const FileCripto = () => {
   const [publicKey, setPublicKey] = useState("");
