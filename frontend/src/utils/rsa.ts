@@ -24,7 +24,7 @@ function ab2str(buf: any) {
   return String.fromCharCode.apply(null, new Uint8Array(buf) as any);
 }
 
-function str2ab(str: string) {
+export function str2ab(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);
   for (let i = 0, strLen = str.length; i < strLen; i++) {

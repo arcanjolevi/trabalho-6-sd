@@ -7,15 +7,17 @@ import {
   Textarea,
   useToast,
 } from "@chakra-ui/react";
+import axios from "axios";
 
 import { useState } from "react";
 import { MdOutlineContentCopy, MdOutlineSimCardDownload } from "react-icons/md";
+import { api_url } from "./services";
 
 import {
   generatePair,
   importPrivateKey,
   importPublicKey,
-  sign,
+  str2ab,
 } from "./utils/rsa";
 
 const style = {
@@ -104,10 +106,103 @@ function App() {
         {activeTab === 1 && <FileCripto />}
         {activeTab === 2 && <FileDesCripto />}
         {activeTab === 3 && <FileSign />}
+        {activeTab === 4 && <VerifyFile />}
       </Flex>
     </Flex>
   );
 }
+
+const VerifyFile = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [date, setDate] = useState("");
+  const [publicKey, setPublicKey] = useState("");
+  const [message, setMessage] = useState("");
+  const [file, setFile] = useState<File>();
+  const toast = useToast();
+
+  async function signFile() {
+    const a: ArrayBuffer = str2ab("oi");
+    try {
+      const r = await axios.post(api_url + "verify-document", {
+        publicKey,
+        message,
+      });
+      const data = r.data.decrypted.split("\n");
+      setName(data[2]);
+      setEmail(data[4]);
+      setDate(data[6]);
+    } catch (error) {
+      toast({
+        title: "Algo inesperado aconteceu!",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }
+  return (
+    <Flex w="100%" padding={"30px"} flexDirection="column">
+      <h1>Chave pública</h1>
+      <Input
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            const reader = new FileReader();
+            reader.readAsText(e.target.files[0], "UTF-8");
+            reader.onload = (evt) => {
+              setPublicKey((evt.target?.result as string) || "");
+            };
+          }
+        }}
+        marginBottom={"20px"}
+        type={"file"}
+      ></Input>
+
+      <h1>Arquivo a ser Verificado</h1>
+      <Input
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            setFile(e.target.files[0]);
+            const reader = new FileReader();
+            reader.readAsText(e.target.files[0], "UTF-8");
+            reader.onload = (evt) => {
+              setMessage((evt.target?.result as string) || "");
+            };
+          }
+        }}
+        marginBottom={"20px"}
+        type={"file"}
+      ></Input>
+
+      <Button marginBottom={"30px"} onClick={signFile} colorScheme={"facebook"}>
+        Verificar Assinatura
+      </Button>
+
+      {name.length > 0 && email.length > 0 && (
+        <>
+          <h1>Nome</h1>
+          <Input readOnly value={name} marginBottom={"20px"}></Input>
+
+          <h1>Email</h1>
+          <Input
+            readOnly
+            value={email}
+            type="email"
+            marginBottom={"20px"}
+          ></Input>
+
+          <h1>Date</h1>
+          <Input
+            value={date}
+            readOnly
+            type="email"
+            marginBottom={"20px"}
+          ></Input>
+        </>
+      )}
+    </Flex>
+  );
+};
 
 const FileSign = () => {
   const [name, setName] = useState("");
@@ -115,16 +210,25 @@ const FileSign = () => {
   const [privateKey, setPrivateKey] = useState("");
   const [message, setMessage] = useState("");
   const [file, setFile] = useState<File>();
+  const toast = useToast();
 
   async function signFile() {
+    const a: ArrayBuffer = str2ab("oi");
     try {
-      const data = await sign(privateKey, message, name, email);
-
-      if (file) {
-        generateFile(`signed_${file.name}`, data);
-      }
+      const r = await axios.post(api_url + "sign-document", {
+        privateKey,
+        message,
+        email,
+        name,
+      });
+      generateFile(`signed_${file?.name}`, r.data.signed);
     } catch (error) {
-      console.log(error);
+      toast({
+        title: "Algo inesperado aconteceu!",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   }
   return (
@@ -148,7 +252,6 @@ const FileSign = () => {
       <Input
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
-            setFile(e.target.files[0]);
             const reader = new FileReader();
             reader.readAsText(e.target.files[0], "UTF-8");
             reader.onload = (evt) => {
@@ -161,7 +264,20 @@ const FileSign = () => {
       ></Input>
 
       <h1>Arquivo a ser Assinado</h1>
-      <Input marginBottom={"20px"} type={"file"}></Input>
+      <Input
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            setFile(e.target.files[0]);
+            const reader = new FileReader();
+            reader.readAsText(e.target.files[0], "UTF-8");
+            reader.onload = (evt) => {
+              setMessage((evt.target?.result as string) || "");
+            };
+          }
+        }}
+        marginBottom={"20px"}
+        type={"file"}
+      ></Input>
 
       <Button onClick={signFile} colorScheme={"facebook"}>
         Assinar Aquivo
