@@ -17,42 +17,48 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 
-app.get("/keys-rsa", (req, res) => {
-  const key = new rsa().generateKeyPair();
-  const publicKey = key.exportKey("public");
-  const privateKey = key.exportKey("private");
-  return res.json({ keys: { publicKey, privateKey } });
-});
+function getDate() {
+  var date = new Date(),
+    day = date.getDate().toString(),
+    dayF = day.length == 1 ? "0" + day : day,
+    month = (date.getMonth() + 1).toString(),
+    monthF = month.length == 1 ? "0" + month : month,
+    yearF = date.getFullYear();
+  return dayF + "/" + monthF + "/" + yearF;
+}
 
-app.post("/encrypt", (req, res) => {
-  if (!req.body.message || !req.body.publicKey) {
-    return res
-      .sendStatus(404)
-      .json({ msg: "please inform public key and message" });
-  }
+function sign(req, message, name, email) {
+  var privateKey = new rsa();
+  privateKey.importKey(req.body.privateKey);
+  var signature =
+    "ASSINADO POR:\nNOME: " +
+    name +
+    "\nE-MAIL: " +
+    email +
+    "\nDATA: " +
+    getDate();
+  var encrypted = privateKey.encryptPrivate(signature, "base64");
+  return encrypted + "\n" + message;
+}
 
+function checkSignature(req) {
   var publicKey = new rsa();
   publicKey.importKey(req.body.publicKey);
-  var encrypted = publicKey.encrypt(
-    salt_begin + req.body.message + salt_end,
-    "base64"
-  );
+  var signature = req.body.message.substr(0, req.body.message.indexOf("\n"));
+  var decrypted = publicKey.decryptPublic(signature, "utf8");
+  return decrypted;
+}
 
-  return res.json({ encrypted });
-});
-
-app.post("/decrypt", (req, res) => {
+app.post("/sign-document", (req, res) => {
   if (!req.body.message || !req.body.privateKey) {
     return res
       .sendStatus(404)
       .json({ msg: "please inform public key and message" });
   }
 
-  var privateKey = new rsa();
-  privateKey.importKey(req.body.privateKey);
-  var decrypted = privateKey.decrypt(req.body.message, "utf8");
-  decrypted = decrypted.replace(salt_begin, "").replace(salt_end, "");
-  return res.json({ decrypted });
+  const signed = sign(req);
+
+  return res.json({ signed });
 });
 
 /**
