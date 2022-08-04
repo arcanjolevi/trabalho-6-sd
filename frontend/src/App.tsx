@@ -39,12 +39,13 @@ function App() {
     <Flex
       w="100vw"
       minHeight={"100vh"}
-      paddingTop={"15vh"}
+      paddingTop={{ base: "0", sm: "15vh" }}
       alignItems="flex-start"
       justifyContent={"center"}
     >
       <Flex
-        width={"800px"}
+        maxW={["800px"]}
+        width="100vw"
         padding={"10px"}
         boxShadow="rgba(0, 0, 0, 0.24) 0px 3px 8px;"
         borderRadius={"10px"}
@@ -53,10 +54,11 @@ function App() {
       >
         <Flex
           width={"100%"}
-          height="70px"
+          height={{ base: "auto", lg: "70px" }}
           alignItems={"center"}
           justifyContent="space-between"
           background={"#cccccc"}
+          flexWrap="wrap"
         >
           <Tab
             onClick={() => setActiveTab(0)}
@@ -98,7 +100,7 @@ function App() {
             }
             onClick={() => setActiveTab(4)}
           >
-            Assinar Documento
+            Verificar Assinatura
           </Tab>
         </Flex>
 
@@ -224,7 +226,7 @@ const FileSign = () => {
       generateFile(`signed_${file?.name}`, r.data.signed);
     } catch (error) {
       toast({
-        title: "Algo inesperado aconteceu!",
+        title: "Dados inválidos",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -292,7 +294,7 @@ const Tab = ({ children, ...props }: any) => {
       background={"#FFF"}
       height={"70px"}
       alignItems="center"
-      width={"19.85%"}
+      width={{ base: "100vw", sm: "19.85%" }}
       justifyContent="center"
       _hover={{ opacity: 0.5 }}
       cursor="pointer"
