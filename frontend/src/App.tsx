@@ -3,20 +3,19 @@ import {
   Button,
   Divider,
   Flex,
-  Heading,
   Input,
-  Radio,
-  RadioGroup,
-  Stack,
   Textarea,
   useToast,
 } from "@chakra-ui/react";
 
-import axios from "axios";
-import rsa from "node-rsa";
 import { useState } from "react";
 import { MdOutlineContentCopy, MdOutlineSimCardDownload } from "react-icons/md";
-import { api_url } from "./services";
+
+import {
+  generatePair,
+  importPrivateKey,
+  importPublicKey,
+} from "./utils/rsaGenerateKeys";
 
 function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -100,177 +99,139 @@ function App() {
 }
 
 const FileCripto = () => {
-  const [keyType, setKeyType] = useState(-1);
   const [publicKey, setPublicKey] = useState("");
-  const [message, setMessage] = useState("");
+  const [messageA, setMessageA] = useState<ArrayBuffer>();
   const [file, setFile] = useState<File>();
+  const toast = useToast();
 
   async function encrypt() {
-    try {
-      const r = await axios.post(api_url + "encrypt", {
-        publicKey,
-        message,
-      });
-
-      if (file) {
-        generateFile(file.name, r.data.encrypted);
+    if (messageA && file) {
+      try {
+        const key = await importPublicKey(publicKey);
+        const data = await window.crypto.subtle.encrypt(
+          {
+            name: "RSA-OAEP",
+          },
+          key,
+          messageA
+        );
+        generateFromBuffer(`encript_${file?.name}`, data);
+      } catch (error) {
+        console.log(error);
+        toast({
+          title: "Verifique seus dados",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
-    } catch (error) {
-      console.log(error);
+    } else {
+      toast({
+        title: "Verifique seus dados",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   }
   return (
     <Flex w="100%" padding={"30px"} flexDirection="column">
-      <Flex marginBottom={"20px"} gap={"10px"}>
-        <Button
-          onClick={() => setKeyType(0)}
-          colorScheme={keyType === 0 ? "facebook" : "gray"}
-        >
-          Inserir chave manualmente
-        </Button>
+      <>
+        <h1>Carregue uma arquivo com a chave pública</h1>
+        <Input
+          onChange={async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              const reader = new FileReader();
+              reader.readAsText(e.target.files[0], "UTF-8");
+              reader.onload = (evt) => {
+                setPublicKey((evt.target?.result as string) || "");
+              };
+            }
+          }}
+          marginY={"5px"}
+          type={"file"}
+        ></Input>
+      </>
 
-        <Button
-          onClick={() => setKeyType(1)}
-          colorScheme={keyType === 1 ? "facebook" : "gray"}
-        >
-          Carregar arquivo com chave
-        </Button>
-      </Flex>
-      {keyType === 0 && (
-        <>
-          <h1>Insira uma Chave Pública</h1>
-          <Input marginBottom={"10px"}></Input>
-        </>
-      )}
-
-      {keyType === 1 && (
-        <>
-          <h1>Carregue uma arquivo com a chave pública</h1>
-          <Input
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                const reader = new FileReader();
-                reader.readAsText(e.target.files[0], "UTF-8");
-                reader.onload = (evt) => {
-                  setPublicKey((evt.target?.result as string) || "");
-                };
-              }
-            }}
-            marginY={"5px"}
-            type={"file"}
-          ></Input>
-        </>
-      )}
-
-      {keyType !== -1 && (
-        <>
-          <h1>Carregue arquivo a ser criptografado</h1>
-          <Input
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                setFile(e.target.files[0]);
-                const reader = new FileReader();
-                reader.readAsText(e.target.files[0], "UTF-8");
-                reader.onload = (evt) => {
-                  setMessage(evt.target?.result as string);
-                };
-              }
-            }}
-            marginY={"5px"}
-            type={"file"}
-          ></Input>
-        </>
-      )}
+      <h1>Carregue arquivo a ser criptografado</h1>
+      <Input
+        onChange={async (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            setMessageA(await e.target.files[0].arrayBuffer());
+            setFile(e.target.files[0]);
+          }
+        }}
+        marginY={"5px"}
+        type={"file"}
+      ></Input>
 
       <Button onClick={encrypt} marginY="30px" colorScheme={"facebook"}>
-        Criptografar
+        Criptografar Arquivo
       </Button>
     </Flex>
   );
 };
 
 const FileDesCripto = () => {
-  const [keyType, setKeyType] = useState(-1);
   const [privateKey, setPrivateKey] = useState("");
-  const [message, setMessage] = useState("");
+  const [messageA, setMessageA] = useState<ArrayBuffer>();
   const [file, setFile] = useState<File>();
+  const toast = useToast();
 
   async function decrypt() {
     try {
-      const r = await axios.post(api_url + "decrypt", {
-        privateKey,
-        message,
-      });
-
-      if (file) {
-        generateFile(file.name, r.data.decrypted);
+      if (file && messageA) {
+        const key = await importPrivateKey(privateKey);
+        const data = await window.crypto.subtle.decrypt(
+          {
+            name: "RSA-OAEP",
+          },
+          key,
+          messageA
+        );
+        generateFromBuffer(`decrypt_${file?.name}`, data);
       }
     } catch (error) {
       console.log(error);
+      toast({
+        title: "Verifique seus dados",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   }
   return (
     <Flex w="100%" padding={"30px"} flexDirection="column">
-      <Flex marginBottom={"20px"} gap={"10px"}>
-        <Button onClick={() => setKeyType(0)} colorScheme={"facebook"}>
-          Inserir chave manualmente
-        </Button>
+      <h1>Carregue uma arquivo com a chave Privada</h1>
+      <Input
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            const reader = new FileReader();
+            reader.readAsText(e.target.files[0], "UTF-8");
+            reader.onload = (evt) => {
+              setPrivateKey(evt.target?.result as string);
+            };
+          }
+        }}
+        marginY={"5px"}
+        type={"file"}
+      ></Input>
 
-        <Button onClick={() => setKeyType(1)} colorScheme={"facebook"}>
-          Carregar arquivo com chave
-        </Button>
-      </Flex>
-      {keyType === 0 && (
-        <>
-          <h1>Insira uma Chave Privada</h1>
-          <Input
-            onChange={(e) => setPrivateKey(e.target.value)}
-            marginBottom={"10px"}
-          ></Input>
-        </>
-      )}
-
-      {keyType === 1 && (
-        <>
-          <h1>Carregue uma arquivo com a chave Privada</h1>
-          <Input
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                const reader = new FileReader();
-                reader.readAsText(e.target.files[0], "UTF-8");
-                reader.onload = (evt) => {
-                  setPrivateKey(evt.target?.result as string);
-                };
-              }
-            }}
-            marginY={"5px"}
-            type={"file"}
-          ></Input>
-        </>
-      )}
-
-      {keyType !== -1 && (
-        <>
-          <h1>Carregue arquivo a ser descriptografado</h1>
-          <Input
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                setFile(e.target.files[0]);
-                const reader = new FileReader();
-                reader.readAsText(e.target.files[0], "UTF-8");
-                reader.onload = (evt) => {
-                  setMessage(evt.target?.result as string);
-                };
-              }
-            }}
-            marginY={"5px"}
-            type={"file"}
-          ></Input>
-        </>
-      )}
+      <h1>Carregue arquivo a ser descriptografado</h1>
+      <Input
+        onChange={async (e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            setMessageA(await e.target.files[0].arrayBuffer());
+            setFile(e.target.files[0]);
+          }
+        }}
+        marginY={"5px"}
+        type={"file"}
+      ></Input>
 
       <Button onClick={decrypt} marginY="30px" colorScheme={"facebook"}>
-        Descriptografar
+        Descriptografar Arquivo
       </Button>
     </Flex>
   );
@@ -295,15 +256,21 @@ const Generator = () => {
   async function generateKeys() {
     setPublicKey("");
     setPrivateKey("");
-    const { keys } = (await axios.get(api_url + "keys-rsa")).data;
-    setPublicKey(keys.publicKey);
-    setPrivateKey(keys.privateKey);
+
+    try {
+      const keys = await generatePair();
+      setPublicKey(keys.publicKey);
+      setPrivateKey(keys.privateKey);
+    } catch (error) {
+      console.log(error);
+    }
   }
   return (
     <Flex w="100%" padding={"30px"} flexDirection="column">
       <h1>Chave Privada</h1>
       <Box position={"relative"}>
         <Textarea
+          readOnly
           value={privateKey}
           marginBottom={"5px"}
           height="60px"
@@ -330,6 +297,7 @@ const Generator = () => {
 
       <Box position={"relative"} marginBottom="10px">
         <Textarea
+          readOnly
           value={publicKey}
           paddingRight="40px"
           marginBottom={"5px"}
@@ -346,7 +314,7 @@ const Generator = () => {
 
           <Box
             _hover={{ opacity: 0.5 }}
-            onClick={() => generateFile("public_key.pem", privateKey)}
+            onClick={() => generateFile("public_key.pem", publicKey)}
             cursor={"pointer"}
           >
             <MdOutlineSimCardDownload size={30} color="#808080" />
@@ -381,4 +349,18 @@ function generateFile(filename: string, text: string) {
   element.click();
 
   document.body.removeChild(element);
+}
+
+function generateFromBuffer(filename: string, buffer: ArrayBuffer) {
+  const link = document.createElement("a");
+  link.style.display = "none";
+  document.body.appendChild(link);
+
+  const blob = new Blob([buffer], { type: "text/plain" });
+  const objectURL = URL.createObjectURL(blob);
+
+  link.href = objectURL;
+  link.download = filename;
+  link.href = URL.createObjectURL(blob);
+  link.click();
 }
